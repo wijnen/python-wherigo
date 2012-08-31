@@ -1,0 +1,15 @@
+Source: python-wherigo
+Section: python
+Priority: optional
+Maintainer: Bas Wijnen <wijnen@debian.org>
+Build-Depends: debhelper (>= 8), python, python-support
+Standards-Version: 3.9.3
+
+Package: python-wherigo
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}, python-lua
+Description: python module for creating a wherigo player
+ Wherigo cartridges are real-world adventure games, which require the user to
+ move with their legs instead of their keys. This module implements the logic
+ that a cartridge needs, except the interface. It can be used to create a
+ player program, or embed wherigo playing into a larger program.

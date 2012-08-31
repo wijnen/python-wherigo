@@ -1,0 +1,159 @@
+python-wherigo
+==============
+Python module for Wherigo cartridge files
+
+Use this module for writing your own player for Wherigo cartridges.
+
+This file first describes how to use the module. If you're new to wherigo, you
+should start at the section Wherigo cartridges, which explains some background.
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+To use the module, your program must do the following:
+
+======== Initialization ========
+import wherigo
+cartridge = wherigo._load (filename, cbs, config)
+# filename is the name of the gwc or gwz file, or the directory with the gwz
+#	contents (one lua file and the media files).
+# cbs is an object containing the following functions:
+
+	def dialog (table): # show a series of messages.
+	def message (table): # show a single message.
+	def get_input (zinput): # ask a question.
+	def play (media): # play a sound file.
+	def stop_sound (): # stop playing any sound files.
+	def set_status (text): # change status bar text.
+	def save (): # save the game.
+	def quit (): # quit the game.
+	def drive_to (zone): # quit and navigate to zone.
+	def alert (): # alert the user with a sound.
+	def log (level, levelname, text): # log a message.
+	def show (screen, item): # show a screen.
+	def update (): # update the gui.
+	def update_stats (): # update distances in gui.
+	def update_map (): # update locations in gui.
+	def add_timer (time, callback): # register an alarm. Return handle.
+	def remove_timer (handle): # cancel a running timer.
+	def time (): # Return current time as a number, like from time.time ().
+
+# config is a dictionary with at least the following keys
+# (followed by suggested default values):
+gametype		Puzzle
+author			Anonymous
+description		No description set
+guid			0
+name			
+latitude		0
+longitude		0
+altitude		0
+startdesc		No description set
+url			about:blank
+device			PocketPC
+version			0
+user			Monty Python
+completion_code		completion-code
+icon			
+splash			
+env-Platform		xmarksthespot
+env-CartFolder		/whatever
+env-SyncFolder		/whatever
+env-LogFolder		/whatever
+env-PathSep		/
+env-DeviceID		Python
+env-Version		2.11-compatible
+env-Downloaded		0
+env-CartFilename	
+env-Device		
+
+If env-CartFilename is None, it is automatically set according to the given
+filename. If env-Device is set to None, it is set to the same value as device.
+
+When loading a gwc file, only the env-* values are used (for setting up the Env
+lua variable). When loading a gwz file or directory, the other values are used
+as cartridge properties.
+
+
+======== Running ========
+The program must periodically call wherigo._update (position, time).
+The arguments are:
+	the current player position (an object with at least members lat, lon
+	and alt), or None if the position is currently unknown (in that case
+	only the game timers are updated).
+
+	the current time (used for computing the Remaining property of the
+	running timers).
+
+
+======== Lua callbacks ========
+The program is responsible for making certain calls to the Lua code:
+- When a command button is pressed, the respective On* method of the
+  object.
+- OnClicked, when appropriate.
+- OnSync, before saving (if appropriate).
+- OnGetInput, for completed or aborted ZInputs.
+- Callback, for completed dialogs and messages.
+- OnStart, when a cartridge is started.
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+======== Wherigo cartridges ========
+
+Wherigo is a game, where the player must walk around in the real world. The
+(usually hand-held) computer tells the player about the environment, including
+virtual elements such as people and objects which aren't physically there.
+Normally, a cartridge will require interaction with the real world and the
+virtual world. There are several goals cartridge writers can have: a cartridge
+may be a tour guide, explaining things about the area, or an adventure game,
+possibly leading to a geocache, or anything else that a cartridge writer wants
+it to be.
+
+There is no support for networking, so multi-player cartridges are not
+supported.
+
+======== Cartridge files ========
+There are several cartridge files:
+- file.gwc: a compiled cartridge. This is the file people need to play the
+  game. It is not usable for editing.
+- file.gwz: a zipped directory containing the lua source and media files. Other
+  players cannot directly use this file. This is the cartridge source; it can
+  be used for editing. This module allows a gwz file, or a directory in which a
+  gwz file is unzipped, to be used directly for playing. Because some header
+  fields from file.gwc are not available then, those must be provided at
+  startup time (in the config argument of _load).
+- file.gws: a save file, containing the state of a partially finished
+  cartridge. This file is not currently supported by the module.
+
+Official wherigo cartridges are sent to the central website as .gwz files.
+There they are compiled when being downloaded, and information about the user
+is included in the header. Note that when uploading anything to the central
+website, you must effectively transfer you copyright to them, and they will use
+a very restrictive license for those who download it. For this reason, I
+recommend not using the central website for publication.
+
+======== Cartridge internals ========
+A cartridge consists of several image and sound files, and one lua file. This
+lua file describes everything about the cartridge. It is run to create a
+ZCartridge object, which contains all information about the cartridge. In the
+cartridge can be items (ZItem), characters (ZCharacter), zones (Zone), timers
+(ZTimer), tasks (ZTask) and media (ZMedia). Items and characters can have
+commands associated with them (ZCommand). When questions need to be asked, a
+ZInput object is involved.
+
+All lua code is atomic, meaning that it must never wait for anything. Instead,
+a callback is registered, which will be executed after the event takes place.
+For example, to get input from the user, a ZInput is instructed to be shown on
+screen. After that, the lua function returns. When the user has answered, a
+callback (OnGetInput) is called, which can handle the response.
+
+For those who want to read all the details, the source is available. :-)
+
+======== Buggy players ========
+There are several players available for wherigo cartridges. Many of them are
+still actively maintained. An exception is the player for Garmin GPS devices.
+Unfortunately this player is not only unmaintained, but also quite buggy. When
+writing cartridges, one must take care to work around those bugs. This isn't a
+problem for player writers, of course. Except that they should realize that
+testing real cartridges will likely never test these functions, because they
+would break on Garmin devices, and are therefore avoided by cartridge writers.
