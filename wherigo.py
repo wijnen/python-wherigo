@@ -76,9 +76,9 @@ class _Media: # {{{
 		self._provider = {'File': [], 'URL': []}
 # }}}
 
-def _parse_wfi (file): # {{{
+def _parse_wfi (file, config): # {{{
 	ret = {}
-	for key in ('Format', 'Name', 'Author', 'E-mail', 'Copyright', 'License', 'Company', 'Activity', 'StartingLocation', 'BuilderVersion', 'Poster', 'Icon', 'CreateDate', 'UpdateDate'):
+	for key in ('Format', 'Name', 'Version', 'Author', 'E-mail', 'Copyright', 'License', 'Company', 'Activity', 'StartingLocation', 'TargetDevice', 'TargetDeviceVersion', 'BuilderVersion', 'Poster', 'Icon', 'CreateDate', 'UpdateDate', 'PlayerName', 'CompletionCode'):
 		ret[key] = None
 	def nextline (file):
 		while True:
@@ -87,6 +87,7 @@ def _parse_wfi (file): # {{{
 				return line
 			if not (line.strip ()) or line.strip ().startswith ('#'):
 				continue
+			return line
 	last_media = None
 	line = nextline (file)
 	while line:
@@ -101,7 +102,7 @@ def _parse_wfi (file): # {{{
 		longvalue = []
 		if key in ('Name', 'Copyright', 'License', 'StartingLocation', 'Media', 'File', 'URL'):
 			# Allow a long value.
-			while line.strip () != line:
+			while line.lstrip () != line:
 				longvalue.append (line.strip ())
 				line = nextline (file)
 		if key in ('File', 'URL'):
@@ -114,15 +115,23 @@ def _parse_wfi (file): # {{{
 			target = Media
 			value = value.split ('.')
 			for sub in value[:-1]:
-				if sub not in target:
-					target[sub] = {}
-				target = target[sub]
+				if sub.startswith ('_'):
+					s = '_lua' + sub[1:]
+				else:
+					s = sub
+				if s not in target:
+					target[s] = {}
+				target = target[s]
 			value = value[-1]
-			if value in target:
+			if value.startswith ('_'):
+				v = '_lua' + value[1:]
+			else:
+				v = value
+			if v in target:
 				_sys.stderr.write ('Error: duplicate definition of media: %s\n' % value)
 				continue
 			last_media = _Media (longvalue)
-			target[value] = last_media
+			target[v] = last_media
 			continue
 		last_media = None
 		if key not in ret:
@@ -132,6 +141,10 @@ def _parse_wfi (file): # {{{
 			_sys.stderr.write ('Error: duplicate key in wfi file: %s\n' % key)
 			continue
 		ret[key] = (value, longvalue)
+	if ret['PlayerName'] is None:
+		ret['PlayerName'] = config['PlayerName']
+	if ret['CompletionCode'] is None:
+		ret['CompletionCode'] = config['CompletionCode']
 	return ret
 # }}}
 
@@ -155,13 +168,13 @@ def _load (file, cbs, config): # {{{
 	_script.run ('', 'Env', env, name = 'setting Env')
 	# }}}
 	global _wfzopen
-	if os.path.isdir (file):
-		_wfzopen = lambda name: open (os.path.join (file, name))
+	if _os.path.isdir (file):
+		_wfzopen = lambda name: open (_os.path.join (file, name))
 	else:
 		global _wfz
 		_wfz = _zipfile.ZipFile (file)
-		_wfzopen = lambda name: _wfz.open (name)
-	info = _parse_wfi (_wfzopen ('_cartridge.wfi'))
+		_wfzopen = lambda name: _wfz.open (_os.path.join (_os.path.splitext (_os.path.basename (file))[0], name))
+	info = _parse_wfi (_wfzopen ('_cartridge.wfi'), config)
 	# Set up Player. {{{
 	Player = ZCharacter (None)
 	Player.ObjIndex = -1
@@ -180,6 +193,7 @@ def _load (file, cbs, config): # {{{
 	_starting_marker.Name = 'The start of this cartridge'
 	_starting_marker.Media = ret.Icon
 	_starting_marker.Description = ret.StartingLocationDescription
+	return ret
 # }}}
 
 # Class definitions. All these classes are used by lua code and can be inspected and changed by both lua and python code. {{{
